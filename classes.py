@@ -48,7 +48,7 @@ class KPCalc:
         params = cv2.SimpleBlobDetector_Params()
         params.minThreshold = 1
         params.maxThreshold = 20
-        params.minArea = 1
+        params.minArea = 5
         params.maxArea = 500
         params.filterByInertia = False
         params.filterByConvexity = False
@@ -122,10 +122,11 @@ class SimplestPass(GenericVideo):
       #calculate the newest detection points
       self.kpc.calcBlobs(self.fgmask)
       if len(self.kpc.kp) > 0:
-        cv2.imwrite(f"images/{self.frame_count}.png",self.fgmask)
+        pass
+        #cv2.imwrite(f"images/{self.frame_count}.png",self.fgmask)
       # make blobs into list of detections
-
     def doBGSeg(self):
+      print(self.frame_count)
       self.frame_count+=1 
       self.fgmask = self.fgbg.apply(self.frame)
       ##cv2.imshow("blob image",self.fgmask)
@@ -149,10 +150,11 @@ class SimplestPass(GenericVideo):
       self.serialized = json.dumps(output)
       self.out_binary = self.serialized.encode("utf-8")
 
+class SimplestPassMOG2(SimplestPass):
+  def __init__(self,vid,centroid_threshold):
+    super().__init__(vid,centroid_threshold)
+    self.fgbg = cv2.createBackgroundSubtractorMOG2()
 
-class ObjectEncoder(json.JSONEncoder):
-  def default(self,o):
-    return o.__dict__
 
 
 class TrackSetBase:
@@ -175,6 +177,7 @@ class TrackSetCentroids(TrackSetBase):
   def compute(self,new_detections):
     ## if tracks aren't established yet just add each detection as a track 
     ## go over list of tracks
+    print("number of tracks",len(self.tracks))
     for t in self.tracks:
       for d in new_detections:
         ##compare to the very last of the elements we are tracking
@@ -182,6 +185,7 @@ class TrackSetCentroids(TrackSetBase):
           t.append(d.copy())
     ## go through the detections and add the ones with no successful comparisons to the tracks as starting points
 
+    print("number of detections",len(new_detections))
     for d in new_detections:
       if d.count == 0:
         self.tracks.append([d])
@@ -219,13 +223,13 @@ class CentroidObject(TrackObjectBase):
     return copy
 
 # testing classes
-def test_video():
+def test_video(passClass):
   threshold = 10
   videos = glob.glob("mine*/*mp4")
   vid ="mine-4_rockfall_clips/Camera 1 - 192.168.0.105 (FLIR A400) - 14-20210528-225029.mp4"
-  simple_process = SimplestPass(vid,threshold)
+  pass_var = passClass(vid,threshold)
   
-  simple_process.process()
+  pass_var.process()
 
 def test_track():
   ## make an image use kpc on thing and then try to pass the values to a tracker
@@ -246,10 +250,13 @@ def test_track():
   tracker.compute(detections)
   #print(tracker.tracks)
 
-def timer(f):
+
+
+def timer(msg,f,passClass):
+  print(msg)
   start = time.time()
-  f()
+  f(passClass)
   print("seconds passed",time.time() - start)
 
 
-timer(test_video)
+timer("outer timer",test_video,SimplestPassMOG2)
