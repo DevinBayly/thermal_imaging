@@ -121,6 +121,18 @@ class SimplestPass(GenericVideo):
     def doBlobAnalysis(self):
       #calculate the newest detection points
       self.kpc.calcBlobs(self.fgmask)
+
+      ret,thresh = cv2.threshold(self.fgmask,125,255,0)
+      contours,hierarchy = cv2.findContours(thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+      ##
+      cv2.drawContours(self.fgmask,contours,-1,(0,255,0),1)
+      bounding = []
+
+      for i,c in enumerate(contours):
+          contour_poly = cv2.approxPolyDP(c, 3, True)
+          bounds =  cv2.boundingRect(contour_poly)
+          cv2.rectangle(self.fgmask,(bounds[0],bounds[1]),(bounds[0]+bounds[2],bounds[1]+bounds[3]),(255,0,0),1)
+      cv2.imshow("pretty",self.fgmask)
       if len(self.kpc.kp) > 0:
         pass
         #cv2.imwrite(f"images/{self.frame_count}.png",self.fgmask)
@@ -259,4 +271,4 @@ def timer(msg,f,passClass):
   print("seconds passed",time.time() - start)
 
 
-timer("outer timer",test_video,SimplestPassMOG2)
+timer("outer timer",test_video,SimplestPass)
