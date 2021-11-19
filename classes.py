@@ -75,6 +75,10 @@ class GenericVideo:
       ## stripping out the non essential characters
       self.output_name = ''.join([c if c.isalnum() else '_' for c in overly_verbose_name]) +".json"  
     def process(self):
+      empty = np.zeros((200,200))
+      cv2.imshow("processing",empty)
+      time.sleep(10)
+      print("proceeding now")
       self.cap = cv2.VideoCapture(self.vid)
       while(1):
           ret,frame = self.cap.read()
@@ -134,7 +138,7 @@ class SimplestPass(GenericVideo):
       empty =np.zeros(self.frame.shape).astype("uint8")
       centroids = cv2.drawKeypoints(empty, self.kpc.kp, blank, (0,255,255), cv2.DRAW_MATCHES_FLAGS_DEFAULT)
       self.frame += centroids
-      cv2.imshow("pretty",self.frame)
+      cv2.imshow("processing",self.frame)
       if len(self.kpc.kp) > 0:
         pass
         #cv2.imwrite(f"images/{self.frame_count}.png",self.fgmask)
