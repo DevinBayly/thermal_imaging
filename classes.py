@@ -50,6 +50,7 @@ class GenericVideo:
       #print("proceeding now")
       self.cap = cv2.VideoCapture(self.vid)
       while(1):
+          tstart= time.time()
           ret,frame = self.cap.read()
           if not ret:
               break
@@ -60,6 +61,7 @@ class GenericVideo:
           k = cv2.waitKey(30) &0xff
           if k == 27:
               break
+          print("seconds passed",time.time()-tstart)
       self.cap.release()
       cv2.destroyAllWindows()
       ## handle exporting
