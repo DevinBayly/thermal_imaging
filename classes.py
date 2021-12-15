@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import numpy as np
 import pickle
 import cv2
@@ -5,6 +6,7 @@ import glob
 import pandas as pd
 import time
 import json
+import multiprocessing as mp
 
 class BaseVideo:
   def __init__(self,bgm_type,blob_type,tracker_type):
@@ -35,23 +37,44 @@ class KPCalc:
         #cv2.imshow("blobs",blobs)
         return self.kp
 
+
+
 class GenericVideo:
-    def __init__ (self,vid):
+    def __init__ (self,vid,frames_to_process =0,id_val = 0):
       self.vid = vid
+      self.id_val = id_val
       self.cap = None
       self.frame = None
       overly_verbose_name = f"{'_'.join(self.vid.split('.')[:-1])}_{time.time()}"
       ## stripping out the non essential characters
       self.output_name = ''.join([c if c.isalnum() else '_' for c in overly_verbose_name]) +".json"  
+      self.frames_to_process = frames_to_process
+      self.cap = cv2.VideoCapture(self.vid)
+      self.totalFrames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+      self.frames = 0
+      self.videosRecordedFPS = int(self.cap.get(cv2.CAP_PROP_FPS))
+      ##decide on limit to the processing
+      if self.frames_to_process > 0:
+        ## this means we are breaking the video up to process faster
+        self.starting_frame = self.frames_to_process*self.id_val
+      else:
+        ## means we are starting from the beginning
+        self.starting_frame = 0
+        self.frames_to_process= self.totalFrames
+      self.cap.set(cv2.CAP_PROP_POS_FRAMES,self.starting_frame)
     def process(self):
       empty = np.zeros((200,200))
       #cv2.imshow("processing",empty)
       #time.sleep(10)
       #print("proceeding now")
-      self.cap = cv2.VideoCapture(self.vid)
-      while(1):
+      ## get the total number of frames to make estimate
+        
+      print(self.frames_to_process)
+      for i in range(self.frames_to_process):
+      ##for i in tqdm(range(self.frames_to_process)):
           tstart= time.time()
           ret,frame = self.cap.read()
+          self.frames+=1
           if not ret:
               break
           self.frame = frame
@@ -61,7 +84,7 @@ class GenericVideo:
           k = cv2.waitKey(30) &0xff
           if k == 27:
               break
-          print("seconds passed",time.time()-tstart)
+          ##print("seconds passed",time.time()-tstart)
       self.cap.release()
       cv2.destroyAllWindows()
       ## handle exporting
@@ -85,9 +108,11 @@ class GenericVideo:
         ##print(self.out_binary)
         phile.write(self.out_binary)
 
+
 class SimplestPass(GenericVideo):
-    def __init__(self,vid,centroid_threshold,time_limit):
-      super().__init__(vid)
+    def __init__(self,vid,centroid_threshold,time_limit,frames_to_process =0,id_val = 0):
+      super().__init__(vid,frames_to_process ,id_val )
+      print("simplest vid ",vid)
       self.fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
       self.kpc = KPCalc()
       self.tracker = TrackerCentroids(centroid_threshold,time_limit)
@@ -167,6 +192,45 @@ class SimplestPass(GenericVideo):
       ##self.serialized = json.dumps(output)
       ##self.out_binary = self.serialized.encode("utf-8")
       pass
+
+  
+
+## TODO write something that takes certain tracks out of the listing when their time is up
+
+## this will only perform background segmentation and 
+class OnlyDetect(SimplestPass):
+  def __init__(self,vid,centroid_threshold,time_limit,frames_to_process=0,id_val=0):
+    super().__init__(vid,centroid_threshold,time_limit,frames_to_process ,id_val )
+    self.tstamp_logger = []
+    self.export_timer = time.time()
+  ## overload the doSteps method from the parent()
+  def doSteps(self):
+    ##leave out the tracking
+    self.doBGSeg()
+    self.doBlobAnalysis()
+    if time.time() - self.export_timer > 5*60:
+      self.export_timer = time.time()
+      print("exporting, we are ",int(100*self.frames/self.totalFrames)," % of the way done")
+      self.export() 
+  def doBlobAnalysis(self):
+    self.kpc.calcBlobs(self.fgmask)
+    ## now check how many detections were made and export number of ticks
+    if len(self.kpc.kp) > 0:
+      self.tstamp_logger.append( conv_ms_tstamp_string(self.tstamp))
+  @staticmethod
+  def make_only_for_parallel(vid,centroid_threshold,time_limit,frames_to_process,id_val):
+    print("values are",vid,centroid_threshold,time_limit,frames_to_process,id_val)
+    only = OnlyDetect(vid,centroid_threshold,time_limit,frames_to_process,id_val)
+    
+    only.process()
+  def export(self):
+    ## convert the tstamp_logger list into a json list that can be uploaded
+    fname = "logger"+f"{self.id_val:02d}"+self.output_name
+    with open(fname,"w") as phile:
+      phile.write(json.dumps(self.tstamp_logger))
+    
+
+
 
 class SimplestPassMOG2(SimplestPass):
   def __init__(self,vid,centroid_threshold):
@@ -338,8 +402,10 @@ class CentroidObject(TrackObjectBase):
 def test_video(passClass):
   threshold = 5
   time_limit = 4000 # in milliseconds
-  videos = glob.glob("mine*/*mp4")
-  vid ="mine-4_rockfall_clips/Camera 1 - 192.168.0.105 (FLIR A400) - 14-20210528-225029.mp4"
+  videos = glob.glob("./*/*mp4")
+  print(videos,"these were the mp4s found")
+  vid ="mine-4_rockfall_clips/Camera 2 - 192.168.0.121 (FLIRFC-632-ID-22947C)-20210526-234803.mp4"
+  print("executing on ",vid)
   pass_var = passClass(vid,threshold,time_limit)
   
   pass_var.process()
@@ -347,6 +413,36 @@ def test_video(passClass):
   pickle.dump(pass_var.tracker,open("testpickle","wb"))
   return pass_var
 
+
+
+
+def test_parallel_video(passclass):
+  threshold = 5
+  time_limit = 4000 # in milliseconds
+  vid ="mine-4_rockfall_clips/Camera 2 - 192.168.0.121 (FLIRFC-632-ID-22947C)-20210526-234803.mp4"
+  num_cpus = mp.cpu_count()
+  _tempcap = cv2.VideoCapture(vid)
+  total_frames = _tempcap.get(cv2.CAP_PROP_FRAME_COUNT)
+  print(total_frames)
+  frames_per_cpu= int(total_frames/num_cpus) + 1
+  print("executing on ",vid)
+  ## leverage multiprocessing now
+  processes = []
+  for id_val in range(num_cpus):
+    ## make a collection of only detectors and start them all up
+    process = mp.Process(target=OnlyDetect.make_only_for_parallel,args = (vid,threshold,time_limit,frames_per_cpu,id_val,))
+    processes.append(process)
+  print("now starting the processes")  
+  #start each processor
+  for p in processes:
+    p.start()
+  print("and now joining")
+  #await their endings one by one
+  for p in processes:
+    p.join()
+    
+
+  
 def test_track():
   ## make an image use kpc on thing and then try to pass the values to a tracker
   threshold = 10
@@ -369,10 +465,10 @@ def test_track():
 
 
 def timer(msg,f,passClass):
-  #print(msg)
+  print(msg)
   start = time.time()
   f(passClass)
-  #print("seconds passed",time.time() - start)
+  print("seconds passed",time.time() - start)
 
 
 #timer("outer timer",test_video,SimplestPass)
