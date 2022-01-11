@@ -6,7 +6,9 @@ import glob
 import pandas as pd
 import time
 import json
+import shutil
 import multiprocessing as mp
+import os
 
 class BaseVideo:
   def __init__(self,bgm_type,blob_type,tracker_type):
@@ -70,7 +72,7 @@ class GenericVideo:
       ## get the total number of frames to make estimate
         
       print(self.frames_to_process)
-      for i in range(self.frames_to_process):
+      for i in tqdm(range(self.frames_to_process)):
       ##for i in tqdm(range(self.frames_to_process)):
           tstart= time.time()
           ret,frame = self.cap.read()
@@ -203,20 +205,25 @@ class OnlyDetect(SimplestPass):
     super().__init__(vid,centroid_threshold,time_limit,frames_to_process ,id_val )
     self.tstamp_logger = []
     self.export_timer = time.time()
+    self.centroid_threshold = centroid_threshold
   ## overload the doSteps method from the parent()
   def doSteps(self):
     ##leave out the tracking
     self.doBGSeg()
     self.doBlobAnalysis()
     if time.time() - self.export_timer > 5*60:
+      print("exporting checkpoint")
       self.export_timer = time.time()
-      print("exporting, we are ",int(100*self.frames/self.totalFrames)," % of the way done")
       self.export() 
   def doBlobAnalysis(self):
     self.kpc.calcBlobs(self.fgmask)
     ## now check how many detections were made and export number of ticks
-    if len(self.kpc.kp) > 0:
-      self.tstamp_logger.append( conv_ms_tstamp_string(self.tstamp))
+    num_detections = len(self.kpc.kp)
+    blank = np.zeros((1,1))
+    empty =np.zeros(self.frame.shape).astype("uint8")
+    self.centroids = cv2.drawKeypoints(empty, self.kpc.kp, blank, (0,255,255), cv2.DRAW_MATCHES_FLAGS_DEFAULT)
+    if  num_detections> 0 :
+      self.tstamp_logger.append({"tstamp_ms":self.tstamp,"tstamp": conv_ms_tstamp_string(self.tstamp),"number":num_detections,"detections":[{"x":d.pt[0],"y":d.pt[1]} for d in self.kpc.kp]})
   @staticmethod
   def make_only_for_parallel(vid,centroid_threshold,time_limit,frames_to_process,id_val):
     print("values are",vid,centroid_threshold,time_limit,frames_to_process,id_val)
@@ -225,7 +232,7 @@ class OnlyDetect(SimplestPass):
     only.process()
   def export(self):
     ## convert the tstamp_logger list into a json list that can be uploaded
-    fname = "logger"+f"{self.id_val:02d}"+self.output_name
+    fname = "thermal_logger"+f"{self.id_val:02d}"+self.output_name
     with open(fname,"w") as phile:
       phile.write(json.dumps(self.tstamp_logger))
     
@@ -357,6 +364,20 @@ def conv_ms_tstamp_string(ms):
   t_hours = int(ms/(1000*60*60))%60
   return f"{t_hours:02d}:{t_mins:02d}:{t_s:02d}"
 
+def combine(pth,name):
+  logs = glob.glob(pth+"/thermal_logger*json")
+  all_log = []
+  for log in logs:
+    with open(log,"r") as phile:
+      all_log.extend(json.loads(phile.read()))
+  with open(f"all_logs_{name}.json","w") as phile:
+    phile.write(json.dumps(all_log)) 
+  ## now remove the logs
+  for log in logs:
+    try:
+      os.remove(log)
+    except Exception as e:
+      print("error, might have been someone elses log file?",e)
 
 ## this object is on frame's detection, multiple of these make up a set to track
 class TrackObjectBase:
@@ -415,32 +436,51 @@ def test_video(passClass):
 
 
 
+def test_detect():
+  threshold = 20
+  time_limit = 4000
+  vid = "/xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/052621/Camera 2 - 192.168.0.121 (FLIRFC-632-ID-22947C)-20210526-082632.mp4"
+  shutil.copy(vid,"/tmp/thermal_video.mp4")
+  os.chdir("/tmp")
+  OnlyDetect.make_only_for_parallel("thermal_video.mp4",threshold,time_limit,0,0)
+  
 
 def test_parallel_video(passclass):
-  threshold = 5
+  threshold = 20
   time_limit = 4000 # in milliseconds
-  vid ="mine-4_rockfall_clips/Camera 2 - 192.168.0.121 (FLIRFC-632-ID-22947C)-20210526-234803.mp4"
-  num_cpus = mp.cpu_count()
-  _tempcap = cv2.VideoCapture(vid)
-  total_frames = _tempcap.get(cv2.CAP_PROP_FRAME_COUNT)
-  print(total_frames)
-  frames_per_cpu= int(total_frames/num_cpus) + 1
-  print("executing on ",vid)
-  ## leverage multiprocessing now
-  processes = []
-  for id_val in range(num_cpus):
-    ## make a collection of only detectors and start them all up
-    process = mp.Process(target=OnlyDetect.make_only_for_parallel,args = (vid,threshold,time_limit,frames_per_cpu,id_val,))
-    processes.append(process)
-  print("now starting the processes")  
-  #start each processor
-  for p in processes:
-    p.start()
-  print("and now joining")
-  #await their endings one by one
-  for p in processes:
-    p.join()
+  vids = glob.glob("/xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/052621/*.mp4") \
+  +glob.glob("/xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/052721/*.mp4") \
+  +glob.glob("/xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/052821/*.mp4")
+  print(vids)
+  for vid in vids:
+    print("processing video",vid)
+    #vid ="mine-4_rockfall_clips/Camera 2 - 192.168.0.121 (FLIRFC-632-ID-22947C)-20210526-234803.mp4"
+    shutil.copy(vid,"/tmp/thermal_video.mp4")
+    os.chdir("/tmp")
+    num_cpus = 16
+    _tempcap = cv2.VideoCapture(vid)
+    total_frames = _tempcap.get(cv2.CAP_PROP_FRAME_COUNT)
+    print(total_frames)
+    frames_per_cpu= int(total_frames/num_cpus) + 1
+    print("executing on ",vid)
+    ## leverage multiprocessing now
+    processes = []
+    for id_val in range(num_cpus):
+      ## make a collection of only detectors and start them all up
+      process = mp.Process(target=OnlyDetect.make_only_for_parallel,args = (vid,threshold,time_limit,frames_per_cpu,id_val,))
+      processes.append(process)
+    print("now starting the processes")  
+    #start each processor
+    for p in processes:
+      p.start()
+    print("and now joining")
+    #await their endings one by one
+    for p in processes:
+      p.join()
     
+    ## should try to combine the videos now
+    os.chdir("/groups/chrisreidy/baylyd/thermal_imaging")
+    combine("/tmp",vid.split("/")[-1])
 
   
 def test_track():
