@@ -1,4 +1,5 @@
 from tqdm import tqdm
+import base64
 import numpy as np
 import pickle
 import cv2
@@ -73,7 +74,6 @@ class GenericVideo:
         
       print(self.frames_to_process)
       for i in tqdm(range(self.frames_to_process)):
-      ##for i in tqdm(range(self.frames_to_process)):
           tstart= time.time()
           ret,frame = self.cap.read()
           self.frames+=1
@@ -227,7 +227,9 @@ class OnlyDetect(SimplestPass):
   @staticmethod
   def make_only_for_parallel(vid,centroid_threshold,time_limit,frames_to_process,id_val):
     print("values are",vid,centroid_threshold,time_limit,frames_to_process,id_val)
-    only = OnlyDetect(vid,centroid_threshold,time_limit,frames_to_process,id_val)
+    process_video_copy = f"/tmp/thermal_video{id_val}.mp4"
+    shutil.copy("/tmp/thermal_video.mp4",process_video_copy)
+    only = OnlyDetect(process_video_copy,centroid_threshold,time_limit,frames_to_process,id_val)
     
     only.process()
   def export(self):
@@ -235,7 +237,13 @@ class OnlyDetect(SimplestPass):
     fname = "thermal_logger"+f"{self.id_val:02d}"+self.output_name
     with open(fname,"w") as phile:
       phile.write(json.dumps(self.tstamp_logger))
-    
+    ## export a snapshot to use in background of logger viewing
+    png_name = "thermal_logger_img"+f"{self.id_val:02d}.png"
+    try:
+      cv2.imwrite(png_name,self.frame)
+
+    except Exception as e:
+      print(e)
 
 
 
@@ -366,10 +374,21 @@ def conv_ms_tstamp_string(ms):
 
 def combine(pth,name):
   logs = glob.glob(pth+"/thermal_logger*json")
-  all_log = []
+  all_data =[]
+  ## get all the data
   for log in logs:
     with open(log,"r") as phile:
-      all_log.extend(json.loads(phile.read()))
+      all_data.extend(json.loads(phile.read()))
+  
+##get all the backgroundss
+  imgs = glob.glob(pth+"/thermal_logger_img*")
+  all_imgs =[]
+  for img in imgs:
+
+    with open(img,"rb") as phile:
+      b64_text = base64.b64encode(phile.read()).decode("utf-8")
+      all_imgs.append(b64_text)
+  all_log = dict(data=all_data,background_images=all_imgs)
   with open(f"all_logs_{name}.json","w") as phile:
     phile.write(json.dumps(all_log)) 
   ## now remove the logs
@@ -446,28 +465,26 @@ def test_detect():
   
 
 def test_parallel_video(passclass):
+  starting_directory= os.getcwd()
   threshold = 20
   time_limit = 4000 # in milliseconds
-  vids = glob.glob("/xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/052621/*.mp4") \
-  +glob.glob("/xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/052721/*.mp4") \
-  +glob.glob("/xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/052821/*.mp4")
+  vids = ["long_videos/chad_video.mp4"]
   print(vids)
   for vid in vids:
     print("processing video",vid)
     #vid ="mine-4_rockfall_clips/Camera 2 - 192.168.0.121 (FLIRFC-632-ID-22947C)-20210526-234803.mp4"
     shutil.copy(vid,"/tmp/thermal_video.mp4")
     os.chdir("/tmp")
-    num_cpus = 16
-    _tempcap = cv2.VideoCapture(vid)
+    num_cpus = 3
+    _tempcap = cv2.VideoCapture("thermal_video.mp4")
     total_frames = _tempcap.get(cv2.CAP_PROP_FRAME_COUNT)
-    print(total_frames)
+    print("total frames" ,total_frames)
     frames_per_cpu= int(total_frames/num_cpus) + 1
-    print("executing on ",vid)
     ## leverage multiprocessing now
     processes = []
     for id_val in range(num_cpus):
       ## make a collection of only detectors and start them all up
-      process = mp.Process(target=OnlyDetect.make_only_for_parallel,args = (vid,threshold,time_limit,frames_per_cpu,id_val,))
+      process = mp.Process(target=OnlyDetect.make_only_for_parallel,args = ("thermal_video.mp4",threshold,time_limit,frames_per_cpu,id_val,))
       processes.append(process)
     print("now starting the processes")  
     #start each processor
@@ -479,7 +496,8 @@ def test_parallel_video(passclass):
       p.join()
     
     ## should try to combine the videos now
-    os.chdir("/groups/chrisreidy/baylyd/thermal_imaging")
+    os.chdir(starting_directory)
+    os.chdir("../")
     combine("/tmp",vid.split("/")[-1])
 
   
