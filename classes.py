@@ -227,9 +227,7 @@ class OnlyDetect(SimplestPass):
   @staticmethod
   def make_only_for_parallel(vid,centroid_threshold,time_limit,frames_to_process,id_val):
     print("values are",vid,centroid_threshold,time_limit,frames_to_process,id_val)
-    process_video_copy = f"/tmp/thermal_video{id_val}.mp4"
-    shutil.copy("/tmp/thermal_video.mp4",process_video_copy)
-    only = OnlyDetect(process_video_copy,centroid_threshold,time_limit,frames_to_process,id_val)
+    only = OnlyDetect(vid,centroid_threshold,time_limit,frames_to_process,id_val)
     
     only.process()
   def export(self):
@@ -468,14 +466,14 @@ def test_parallel_video(passclass):
   starting_directory= os.getcwd()
   threshold = 20
   time_limit = 4000 # in milliseconds
-  vids = ["long_videos/chad_video.mp4"]
+  vids = glob.glob("/xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/*/*mp4",recursive=True)
   print(vids)
   for vid in vids:
     print("processing video",vid)
     #vid ="mine-4_rockfall_clips/Camera 2 - 192.168.0.121 (FLIRFC-632-ID-22947C)-20210526-234803.mp4"
     shutil.copy(vid,"/tmp/thermal_video.mp4")
     os.chdir("/tmp")
-    num_cpus = 3
+    num_cpus = 16
     _tempcap = cv2.VideoCapture("thermal_video.mp4")
     total_frames = _tempcap.get(cv2.CAP_PROP_FRAME_COUNT)
     print("total frames" ,total_frames)
