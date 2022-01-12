@@ -464,14 +464,12 @@ def test_detect():
   OnlyDetect.make_only_for_parallel("thermal_video.mp4",threshold,time_limit,0,0)
   
 
-def test_parallel_video(passclass):
+def test_parallel_video(passclass,ifolder,ofolder):
+  vids =process_folders(ifolder,ofolder)
   starting_directory= os.getcwd()
   threshold = 20
   time_limit = 4000 # in milliseconds
-  vids = ["long_videos/chad_video.mp4"]
-  print(vids)
   for vid in vids:
-    print("processing video",vid)
     #vid ="mine-4_rockfall_clips/Camera 2 - 192.168.0.121 (FLIRFC-632-ID-22947C)-20210526-234803.mp4"
     shutil.copy(vid,"/tmp/thermal_video.mp4")
     os.chdir("/tmp")
@@ -497,8 +495,9 @@ def test_parallel_video(passclass):
     
     ## should try to combine the videos now
     os.chdir(starting_directory)
-    os.chdir("../")
+    os.chdir(ofolder)
     combine("/tmp",vid.split("/")[-1])
+    os.chdir(starting_directory)
 
   
 def test_track():
@@ -530,3 +529,29 @@ def timer(msg,f,passClass):
 
 
 #timer("outer timer",test_video,SimplestPass)
+
+# goal have a folder that you can export to, and the contents of this are compared to the inputs folder so that as things finish over time you know that you aren't re-runnign things
+def process_folders(in_folder,out_folder):
+    ## get all the mp4s in the in folder and the jsons in the out folder
+    ## look for the names of the mp4s in the jsons
+  ## look for a file in the out folder called finished which is just a list of the file names 
+  mp4s = glob.glob(in_folder + "/*mp4",recursive = True)
+  jsons = glob.glob(out_folder + "/*json",recursive = True)
+  videos_to_process =[]
+  ## iterate over the jsons and if they are in the mp4s then remove that entity from the mp4s.
+  for j in jsons:
+    #here's the part of the json name that uses the mp4 title
+    start = j.find("Camera")
+    end = j.find(".json")
+    jvideo_name = j[start:end]
+    for mp4 in mp4s:
+      if jvideo_name == mp4.split("/")[-1]:
+        print("found completed",mp4,j)
+        mp4s.remove(mp4)
+        break
+  # send this to a function that is looking for videos to process
+  return mp4s
+
+
+#  print(mp4s,jsons)
+
