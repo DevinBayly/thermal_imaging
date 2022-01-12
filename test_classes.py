@@ -1,5 +1,13 @@
-
+import argparse
 from classes import *
 #timer("outer timer",test_video,SimplestPass)
-timer("parallel timer",test_parallel_video,OnlyDetect)
+
+argparser = argparse.ArgumentParser()
+argparser.add_argument("input_folder")
+argparser.add_argument("output_folder")
+args = argparser.parse_args()
+
+test_parallel_video(OnlyDetect,args.input_folder,args.output_folder)
+
+##timer("parallel timer",test_parallel_video,OnlyDetect)
 ##test_detect()
