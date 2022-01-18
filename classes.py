@@ -12,6 +12,28 @@ import multiprocessing as mp
 import os
 
 class KPCalc:
+  """
+  A class representing the keypoint calculator. This is using the SimpleBlobDetector from OpenCV.
+  The parameters used here are from the default listed in https://learnopencv.com/blob-detection-using-opencv-python-c/
+
+  Attributes:
+
+  kp: list
+     this is a list of the keypoints that we get back when we run the detector.detect(im) line
+  detector: SimpleBlobDetector
+     this is a opencv blob detector built from the parameters listed
+  params: SimpleBlobDetector_Params
+     the parameters that control whether a blob in the image is considered a blob to get the keypoint of.
+
+  Methods:
+
+  init(self)
+    this just generates the blob detector from the parameters and sets the instance attribute variables
+  calcBlobs(self,im)
+    the image is a black and white frame from the video that we get after the background segmentation has completed
+    when the self.detector is run we get back a list of keypoint objects. They are defined by https://docs.opencv.org/3.4/d2/d29/classcv_1_1KeyPoint.html 
+    and we can access their pt property to get back x,y coordinates in screen space for what the centroid of the blob was.
+  """
     def __init__(self):
         params = cv2.SimpleBlobDetector_Params()
         params.minThreshold = 1
@@ -29,9 +51,6 @@ class KPCalc:
         self.detector = detector
     def calcBlobs(self,im):
         self.kp = self.detector.detect(im)
-        ##print(self.kp)
-        
-        #cv2.imshow("blobs",blobs)
         return self.kp
 
 
