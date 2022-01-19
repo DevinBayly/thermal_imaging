@@ -313,6 +313,32 @@ def test_parallel_video(passclass, ifolder, ofolder,video_number):
   os.chdir(starting_directory)
 
 
+def combine(pth,name):
+  logs = glob.glob(pth+"/thermal_logger*json")
+  all_data =[]
+  ## get all the data
+  for log in logs:
+    with open(log,"r") as phile:
+      all_data.extend(json.loads(phile.read()))
+  
+##get all the backgroundss
+  imgs = glob.glob(pth+"/thermal_logger_img*")
+  all_imgs =[]
+  for img in imgs:
+
+    with open(img,"rb") as phile:
+      b64_text = base64.b64encode(phile.read()).decode("utf-8")
+      all_imgs.append(b64_text)
+  all_log = dict(data=all_data,background_images=all_imgs)
+  with open(f"all_logs_{name}.json","w") as phile:
+    phile.write(json.dumps(all_log)) 
+  ## now remove the logs
+  for log in logs:
+    try:
+      os.remove(log)
+    except Exception as e:
+      print("error, might have been someone elses log file?",e)
+
 # goal have a folder that you can export to, and the contents of this are compared to the inputs folder so that as things finish over time you know that you aren't re-runnign things
 def process_folders(in_folder, out_folder):
     # get all the mp4s in the in folder and the jsons in the out folder
