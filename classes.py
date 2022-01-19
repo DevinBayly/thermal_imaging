@@ -48,6 +48,7 @@ class GenericVideo:
       self.id_val = id_val
       self.cap = None
       self.frame = None
+      print(vid)
       overly_verbose_name = f"{'_'.join(self.vid.split('.')[:-1])}_{time.time()}"
       ## stripping out the non essential characters
       self.output_name = ''.join([c if c.isalnum() else '_' for c in overly_verbose_name]) +".json"  
@@ -533,8 +534,10 @@ def process_folders(in_folder,out_folder):
     ## get all the mp4s in the in folder and the jsons in the out folder
     ## look for the names of the mp4s in the jsons
   ## look for a file in the out folder called finished which is just a list of the file names 
-  mp4s = glob.glob(in_folder + "/*mp4",recursive = True)
-  jsons = glob.glob(out_folder + "/*json",recursive = True)
+  mp4s = glob.glob(in_folder + "/**/*mp4",recursive = True)
+  jsons = glob.glob(out_folder + "/**/*json",recursive = True)
+  print(mp4s)
+  print(jsons)
   videos_to_process =[]
   ## iterate over the jsons and if they are in the mp4s then remove that entity from the mp4s.
   for j in jsons:
