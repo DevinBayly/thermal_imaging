@@ -338,7 +338,13 @@ def combine(pth,name):
       os.remove(log)
     except Exception as e:
       print("error, might have been someone elses log file?",e)
-
+      
+def conv_ms_tstamp_string(ms):
+  t_s = int(ms/1000)%60
+  t_mins = int(ms/(1000*60))%60
+  t_hours = int(ms/(1000*60*60))%60
+  return f"{t_hours:02d}:{t_mins:02d}:{t_s:02d}"
+    
 # goal have a folder that you can export to, and the contents of this are compared to the inputs folder so that as things finish over time you know that you aren't re-runnign things
 def process_folders(in_folder, out_folder):
     # get all the mp4s in the in folder and the jsons in the out folder
