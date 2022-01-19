@@ -156,7 +156,7 @@ class SimplestPass(GenericVideo):
       print("simplest vid ", vid)
       self.fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
       self.kpc = KPCalc()
-      self.tracker = TrackerCentroids(centroid_threshold, time_limit)
+      self.tracker = None
       self.frame_count = 0
 
   def doBlobAnalysis(self):
@@ -260,19 +260,16 @@ class OnlyDetect(SimplestPass):
   @staticmethod
   def make_only_for_parallel(vid, centroid_threshold, time_limit,frames_to_process,id_val):
       print("values are", vid, centroid_threshold,time_limit,frames_to_process,id_val)
-      process_video_copy = f"/tmp/thermal_video{id_val}.mp4"
-      shutil.copy("/tmp/thermal_video.mp4", process_video_copy)
-      only = OnlyDetect(process_video_copy, centroid_threshold, time_limit,frames_to_process,id_val)
-
+      only = OnlyDetect(vid, centroid_threshold, time_limit,frames_to_process,id_val)
       only.process()
 
   def export(self):
       # convert the tstamp_logger list into a json list that can be uploaded
-      fname = "thermal_logger"+f"{self.id_val:02d}"+self.output_name
+      fname = self.vid+f"{self.id_val:02d}"+self.output_name
       with open(fname, "w") as phile:
           phile.write(json.dumps(self.tstamp_logger))
       # export a snapshot to use in background of logger viewing
-      png_name = "thermal_logger_img"+f"{self.id_val:02d}.png"
+      png_name = self.vid + f"_img"+f"{self.id_val:02d}.png"
       try:
           cv2.imwrite(png_name, self.frame)
 
@@ -280,40 +277,40 @@ class OnlyDetect(SimplestPass):
           print(e)
 
 
-def test_parallel_video(passclass, ifolder, ofolder):
-  vids = process_folders(ifolder, ofolder)
+def test_parallel_video(passclass, ifolder, ofolder,video_number):
+  print(ifolder,ofolder)
+  videos= process_folders(ifolder, ofolder)
+  vid = videos[int(video_number)]
   starting_directory = os.getcwd()
   threshold = 20
   time_limit = 4000  # in milliseconds
-  for vid in vids:
-      #vid ="mine-4_rockfall_clips/Camera 2 - 192.168.0.121 (FLIRFC-632-ID-22947C)-20210526-234803.mp4"
-      shutil.copy(vid, "/tmp/thermal_video.mp4")
-      os.chdir("/tmp")
-      num_cpus = 3
-      _tempcap = cv2.VideoCapture("thermal_video.mp4")
-      total_frames = _tempcap.get(cv2.CAP_PROP_FRAME_COUNT)
-      print("total frames", total_frames)
-      frames_per_cpu = int(total_frames/num_cpus) + 1
-      # leverage multiprocessing now
-      processes = []
-      for id_val in range(num_cpus):
-          # make a collection of only detectors and start them all up
-          process = mp.Process(target=OnlyDetect.make_only_for_parallel, args = ("thermal_video.mp4", threshold,time_limit,frames_per_cpu,id_val,))
-          processes.append(process)
-      print("now starting the processes")
-      # start each processor
-      for p in processes:
-          p.start()
-      print("and now joining")
-      # await their endings one by one
-      for p in processes:
-          p.join()
+  shutil.copy(vid, f"/tmp/thermal_video_{video_number}.mp4")
+  os.chdir("/tmp")
+  num_cpus = 3
+  _tempcap = cv2.VideoCapture(f"thermal_video_{video_number}.mp4")
+  total_frames = _tempcap.get(cv2.CAP_PROP_FRAME_COUNT)
+  print("total frames", total_frames)
+  frames_per_cpu = int(total_frames/num_cpus) + 1
+  # leverage multiprocessing now
+  processes = []
+  for id_val in range(num_cpus):
+      # make a collection of only detectors and start them all up
+      process = mp.Process(target=OnlyDetect.make_only_for_parallel, args = (f"thermal_video_{video_number}.mp4", threshold,time_limit,frames_per_cpu,id_val,))
+      processes.append(process)
+  print("now starting the processes")
+  # start each processor
+  for p in processes:
+      p.start()
+  print("and now joining")
+  # await their endings one by one
+  for p in processes:
+      p.join()
 
-      # should try to combine the videos now
-      os.chdir(starting_directory)
-      os.chdir(ofolder)
-      combine("/tmp", vid.split("/")[-1])
-      os.chdir(starting_directory)
+  # should try to combine the videos now
+  os.chdir(starting_directory)
+  os.chdir(ofolder)
+  combine("/tmp", vid.split("/")[-1])
+  os.chdir(starting_directory)
 
 
 # goal have a folder that you can export to, and the contents of this are compared to the inputs folder so that as things finish over time you know that you aren't re-runnign things
@@ -321,10 +318,10 @@ def process_folders(in_folder, out_folder):
     # get all the mp4s in the in folder and the jsons in the out folder
     # look for the names of the mp4s in the jsons
   # look for a file in the out folder called finished which is just a list of the file names
-  mp4s = glob.glob(in_folder + "/*mp4", recursive= True)
-  jsons = glob.glob(out_folder + "/*json", recursive= True)
-  videos_to_process = []
+  mp4s = glob.glob(in_folder + "/**/*mp4", recursive= True)
+  jsons = glob.glob(out_folder + "/**/*json", recursive= True)
   # iterate over the jsons and if they are in the mp4s then remove that entity from the mp4s.
+  print(len(mp4s),len(jsons))
   for j in jsons:
       # here's the part of the json name that uses the mp4 title
       start = j.find("Camera")
@@ -336,4 +333,5 @@ def process_folders(in_folder, out_folder):
               mp4s.remove(mp4)
               break
   # send this to a function that is looking for videos to process
+  print(mp4s)
   return mp4s
