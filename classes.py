@@ -109,8 +109,7 @@ class GenericVideo:
       empty = np.zeros((200, 200))
 
       print(self.frames_to_process)
-      #for i in tqdm(range(self.frames_to_process)):
-      for i in tqdm(range(200)):
+      for i in tqdm(range(self.frames_to_process)):
           tstart = time.time()
           ret, frame = self.cap.read()
           self.frames += 1
