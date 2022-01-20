@@ -265,11 +265,12 @@ class OnlyDetect(SimplestPass):
 
   def export(self):
       # convert the tstamp_logger list into a json list that can be uploaded
-      fname = self.vid+f"{self.id_val:02d}"+self.output_name
+      # self.vid is something like thermal_video_0.mp4_0
+      fname =  self.vid+f"_{self.id_val:02d}.json"
       with open(fname, "w") as phile:
           phile.write(json.dumps(self.tstamp_logger))
       # export a snapshot to use in background of logger viewing
-      png_name = self.vid + f"_img"+f"{self.id_val:02d}.png"
+      png_name = self.vid+f"_{self.id_val:02d}.png"
       try:
           cv2.imwrite(png_name, self.frame)
 
@@ -309,12 +310,12 @@ def test_parallel_video(passclass, ifolder, ofolder,video_number):
   # should try to combine the videos now
   os.chdir(starting_directory)
   os.chdir(ofolder)
-  combine("/tmp", vid.split("/")[-1])
+  combine("/tmp", vid.split("/")[-1],f"thermal_video_{video_number}.mp4")
   os.chdir(starting_directory)
 
 
-def combine(pth,name):
-  logs = glob.glob(pth+"/thermal_logger*json")
+def combine(pth,name,vid):
+  logs = glob.glob(pth+"/" + vid + "*json")
   all_data =[]
   ## get all the data
   for log in logs:
@@ -322,10 +323,9 @@ def combine(pth,name):
       all_data.extend(json.loads(phile.read()))
   
 ##get all the backgroundss
-  imgs = glob.glob(pth+"/thermal_logger_img*")
+  logs = glob.glob(pth+"/" + vid + "*png")
   all_imgs =[]
   for img in imgs:
-
     with open(img,"rb") as phile:
       b64_text = base64.b64encode(phile.read()).decode("utf-8")
       all_imgs.append(b64_text)
