@@ -334,9 +334,9 @@ def combine(pth,name,vid):
   with open(f"all_logs_{name}.json","w") as phile:
     phile.write(json.dumps(all_log)) 
   ## now remove the logs
-  for log in logs:
+  for el in imgs+logs:
     try:
-      os.remove(log)
+      os.remove(el)
     except Exception as e:
       print("error, might have been someone elses log file?",e)
       
