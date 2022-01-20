@@ -287,7 +287,7 @@ def test_parallel_video(passclass, ifolder, ofolder,video_number):
   time_limit = 4000  # in milliseconds
   shutil.copy(vid, f"/tmp/thermal_video_{video_number}.mp4")
   os.chdir("/tmp")
-  num_cpus = 3
+  num_cpus = 15
   _tempcap = cv2.VideoCapture(f"thermal_video_{video_number}.mp4")
   total_frames = _tempcap.get(cv2.CAP_PROP_FRAME_COUNT)
   print("total frames", total_frames)
