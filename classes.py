@@ -168,121 +168,106 @@ class SimplestPass(GenericVideo):
     Parameters:
     vid: String
       this is the name of the video file that we are going to process
-    cen
+    frames_to_process: int default 0
+      this is the number of frames in the video to process, when it's at default we process all of them instead of a subset
+    id_val: int
+      this is a number assigned to the class that identifies which cpu core it is running in. This code uses multiprocessing to speed up the time it takes to finish detections in a 12 hour video
     """
     super().__init__(vid, frames_to_process , id_val )
-    print("simplest vid ", vid)
     self.fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
     self.kpc = KPCalc()
     self.tracker = None
     self.frame_count = 0
 
   def doBlobAnalysis(self):
+    """This is the step when we apply blob analysis to the foreground mask image we receive when we complete a background segmentation. Steps included in here are using the mask to create a contour image which can be used for bounding box calculations. This was used to create material that Chad used in the extension proposal but isn't actually used for the HPC parallel processing code which only cares about blob centers not bounding box sizes."""
     # calculate the newest detection points
     self.kpc.calcBlobs(self.fgmask)
-
+    ## the following code helps to draw contours on an image 
     ret, thresh = cv2.threshold(self.fgmask, 125,255,0)
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-    ##
+    ## draw the contour bound on the frame, this is in green but is simply the boundary of the contour
     cv2.drawContours(self.frame, contours, -1,(0,255,0),1)
+    ## decide on the bounds of the contour to make into a box
     bounding = []
-    # what is the matching that we can be doing between the detected centroids?
-    # have to test for "contains" like whether the centroid fits in the bounds of the box
-    # alternative is to calculate the centroid from the contour and then we would know what the correspondence is.
-    # set the area limit to be
-
     for i, c in enumerate(contours):
-        contour_poly = cv2.approxPolyDP(c, 3, True)
-        bounds = cv2.boundingRect(contour_poly)
-        # calculate the area
-        if bounds[2] > 2 and bounds[3] > 2:
-            cv2.rectangle(self.frame, (bounds[0], bounds[1]),(bounds[0]+bounds[2],bounds[1]+bounds[3]),(255,0,0),1)
+      # approximate the polygon without a high level of detail
+      contour_poly = cv2.approxPolyDP(c, 3, True)
+      #figure out the min and max x,y positions in the contour polygon
+      bounds = cv2.boundingRect(contour_poly)
+      # calculate the area
+      if bounds[2] > 2 and bounds[3] > 2:
+        #draw a rectangle on the frame using the corners of the box. this will be in blue
+        cv2.rectangle(self.frame, (bounds[0], bounds[1]),(bounds[0]+bounds[2],bounds[1]+bounds[3]),(255,0,0),1)
+
+    ## these are the steps for putting a yellow circle at the blob's centroid coordinates
     blank = np.zeros((1, 1))
     empty = np.zeros(self.frame.shape).astype("uint8")
     centroids = cv2.drawKeypoints(empty, self.kpc.kp, blank, (0, 255, 255), cv2.DRAW_MATCHES_FLAGS_DEFAULT)
+    # this essentially adds the image with the centroids drawn on top of the image frame we are processing
     self.frame += centroids
-    # cv2.imshow("processing",self.frame)
-    if len(self.kpc.kp) > 0:
-        pass
-        # cv2.imwrite(f"images/{self.frame_count}.png",self.fgmask)
-    # make blobs into list of detections
+    
 
   def doBGSeg(self):
-    # print(self.frame_count)
+    """this function runs the background segmentation type that we have associated with the fgbg attribute."""
     self.frame_count += 1
     self.fgmask = self.fgbg.apply(self.frame)
     
-    ##cv2.imshow("blob image",self.fgmask)
 
   def doTrack(self):
-    # pass in the new detections which are on the self.kpc this stands for keypoints calc I think
-    # make them into the correct tracked objects
-    detections = []
-    for kp in self.kpc.kp:
-        centroid_object = CentroidObject(np.array([kp.pt[0], kp.pt[1]]), self.tstamp)
-        # print(centroid_object)
-        detections.append(centroid_object)
-    self.tracker.compute(detections)
-    # perform a trace of the existing paths so far
-    trackim = np.zeros_like(self.frame).astype("uint8")
-    for t in self.tracker.tracks:
-        linepts = []
-        for d in t.detections:
-            linepts.append(d.center)
-        # draw the line of the image now
-        # print(linepts)
-        # maybe associate track with color also
-        # print(t.color)
-        # print(linepts)
-        cv2.polylines(trackim, [np.array(linepts, np.int32)],False,t.color)
-    # cv2.imshow("tracks",trackim)
+    """this function would pair new points to logical sequences of points to create lines/tracks of them. Think about the word track more as in what trains move along not in terms of video context."""
+    pass
 
   def export(self):
-      # make a dataframe out of the results from the tracker
-    tracker_res = self.tracker.export()
-    df = pd.DataFrame(tracker_res)
-    # save the file to the local disk
-    df.to_csv("data.csv", index_label="index")
+    """this function would take the results of the process and export them"""
+    pass
 
   
 
-# TODO write something that takes certain tracks out of the listing when their time is up
-
-# this will only perform background segmentation and
 class OnlyDetect(SimplestPass):
+  """this class extends Simplest Pass to only be a tracker that can even be run in parallel to massively reduce the time taken to process a 12 hour video file. 
+  
+  Attributes:
+  tstamp_logger : List
+    this list holds the information related to detections that we eventually export to a json file
+  """
   def __init__(self, vid, frames_to_process=0,id_val=0):
     super().__init__(vid,frames_to_process ,id_val )
     self.tstamp_logger = []
-    self.export_timer = time.time()
-# overload the doSteps method from the parent()
-
+    
   def doSteps(self):
+    """Here we are overriding the doSteps method on the parent to leave out the tracking step in the process. This means we only perform background segmentation and blob analysis."""
     # leave out the tracking
     self.doBGSeg()
     self.doBlobAnalysis()
-    if time.time() - self.export_timer > 5*60:
-        print("exporting checkpoint")
-        self.export_timer = time.time()
-        self.export()
+    
 
   def doBlobAnalysis(self):
+    """This method changes what happens when we run the doBlobAnalysis step of doSteps. Here we calculate the keypoints from the foreground of a background segmented frame (self.fgmask) determine if there are detections and commit relevant details to the logger list if there are any."""
     self.kpc.calcBlobs(self.fgmask)
     # now check how many detections were made and export number of ticks
     num_detections = len(self.kpc.kp)
-    blank = np.zeros((1, 1))
-    empty = np.zeros(self.frame.shape).astype("uint8")
-    self.centroids = cv2.drawKeypoints(empty, self.kpc.kp, blank, (0, 255, 255), cv2.DRAW_MATCHES_FLAGS_DEFAULT)
     if  num_detections > 0:
-        self.tstamp_logger.append({"tstamp_ms": self.tstamp, "tstamp": conv_ms_tstamp_string(self.tstamp),"number":num_detections,"detections":[{"x":d.pt[0],"y":d.pt[1]} for d in self.kpc.kp]})
+      # here you can see the logger contains several representations of the time that the detections occured in the video and the number of detections in this frame as well as their x,y coordinates
+      self.tstamp_logger.append({"tstamp_ms": self.tstamp, "tstamp": conv_ms_tstamp_string(self.tstamp),"number":num_detections,"detections":[{"x":d.pt[0],"y":d.pt[1]} for d in self.kpc.kp]})
 
   @staticmethod
   def make_only_for_parallel(vid, frames_to_process,id_val):
+    """this method is called to create an OnlyDetect object for each of the processes that will run on a cpu core. This method is static because we aren't using any existing instance to accomplish this, merely passing a function that will create an OnlyDetect object and then start the process.
+    
+    Parameters:
+    vid : String
+      this is the name of the file to process
+    frames_to_process: int
+      the number of frames from the video that we are processing in parallel
+    id_val : int
+      the cpu core identifier that allows us to sign the logger files uniquely, before combining them back into a single file at the end of the process."""
     print("values are", vid, frames_to_process,id_val)
     only = OnlyDetect(vid, frames_to_process,id_val)
     only.process()
 
   def export(self):
-    # convert the tstamp_logger list into a json list that can be uploaded
+    """This method outputs the tstamp_logger to a file in the working directory where we are running this process. The name will contain a unique number associated with the cpu core that the logger was running on using the id_val. we also export a jpg frame so that we can plot detections points in the context of a mine video with the web vis log plotter. """
     # self.vid is something like thermal_video_0.mp4_0
     fname =  self.vid+f"_{self.id_val:02d}.json"
     with open(fname, "w") as phile:
@@ -291,23 +276,30 @@ class OnlyDetect(SimplestPass):
     png_name = self.vid+f"_{self.id_val:02d}.png"
     try:
         cv2.imwrite(png_name, self.frame)
-
     except Exception as e:
         print(e)
 
 
-def test_parallel_video(passclass, ifolder, ofolder,video_number):
+def process_parallel_video(passclass, ifolder, ofolder,video_number):
+  """This function handles the process of setting up a number of parallel processes that break a video into segments each to be processed for any movement detected. We search the input folder for any files that haven't been processed yet, then save the logs to the output folder. This function is also implemented to support the sbatch array job submission where each job assigned gets a number and we use that to pair a job with a video to be processed. This means that we process >1 12 hour video on multiple cpu cores at the same time if the system has capacity for it."""
   print(ifolder,ofolder)
+  # figure out which videos haven't been logged yet
   videos= process_folders(ifolder, ofolder)
+  # select a specific video from the list according to the job number provided in the array submission process
   vid = videos[int(video_number)]
+  # store the starting directory for later on 
   starting_directory = os.getcwd()
-  
+  # copy the video to the /tmp directory where io is faster
+  # give the video a generic name but associate the video number with the video so that other jobs don't accidentally overwrite
   shutil.copy(vid, f"/tmp/thermal_video_{video_number}.mp4")
   os.chdir("/tmp")
+  # use a hard coded number of cpu cores. NOTE this has to change if we are assigning more cpu cores than 16 in the sbatch script
   num_cpus = 15
+  # maek a temporary capture to determine the number of total frames
   _tempcap = cv2.VideoCapture(f"thermal_video_{video_number}.mp4")
   total_frames = _tempcap.get(cv2.CAP_PROP_FRAME_COUNT)
   print("total frames", total_frames)
+  # calculate the number of frames for each cpu to process
   frames_per_cpu = int(total_frames/num_cpus) + 1
   # leverage multiprocessing now
   processes = []
@@ -327,7 +319,9 @@ def test_parallel_video(passclass, ifolder, ofolder,video_number):
   # should try to combine the videos now
   os.chdir(starting_directory)
   os.chdir(ofolder)
+  # run the combine function to aggregate all the logs that were created from this particular video
   combine("/tmp", vid.split("/")[-1],f"thermal_video_{video_number}.mp4")
+  #go back to the starting folder
   os.chdir(starting_directory)
 
 
