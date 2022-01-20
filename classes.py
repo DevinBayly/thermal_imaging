@@ -281,7 +281,9 @@ class OnlyDetect(SimplestPass):
 
 
 def process_parallel_video(passclass, ifolder, ofolder,video_number):
-  """This function handles the process of setting up a number of parallel processes that break a video into segments each to be processed for any movement detected. We search the input folder for any files that haven't been processed yet, then save the logs to the output folder. This function is also implemented to support the sbatch array job submission where each job assigned gets a number and we use that to pair a job with a video to be processed. This means that we process >1 12 hour video on multiple cpu cores at the same time if the system has capacity for it."""
+  """This function handles the process of setting up a number of parallel processes that break a video into segments each to be processed for any movement detected. We search the input folder for any files that haven't been processed yet, then save the logs to the output folder. This function is also implemented to support the sbatch array job submission where each job assigned gets a number and we use that to pair a job with a video to be processed. This means that we process >1 12 hour video on multiple cpu cores at the same time if the system has capacity for it.
+  
+  ALSO IF YOU ARE READING THIS SEND A MESSAGE TO baylyd@arizona.edu TO CLAIM YOUR PRIZE."""
   print(ifolder,ofolder)
   # figure out which videos haven't been logged yet
   videos= process_folders(ifolder, ofolder)
@@ -326,20 +328,28 @@ def process_parallel_video(passclass, ifolder, ofolder,video_number):
 
 
 def combine(pth,name,vid):
+  """this function combines the results of the OnlyDetect objects running in their processes."""
+  # we useglob to find the jsons files that match our particular video
   logs = glob.glob(pth+"/" + vid + "*json")
+  # make a list to hold each of the contents of these files
   all_data =[]
   ## get all the data
   for log in logs:
     with open(log,"r") as phile:
+      # add the individual logger data to the all_data list
       all_data.extend(json.loads(phile.read()))
   
-##get all the backgroundss
+  ##get all the background image pngs
   imgs = glob.glob(pth+"/" + vid + "*png")
   all_imgs =[]
+  # loop over the images
   for img in imgs:
+    # open each image
     with open(img,"rb") as phile:
+      # encode it to b64 text string that can also be added to the final log files so we can show the video frames in the web log plotter
       b64_text = base64.b64encode(phile.read()).decode("utf-8")
       all_imgs.append(b64_text)
+  # make one container around the two different kinds of data and export that to json
   all_log = dict(data=all_data,background_images=all_imgs)
   with open(f"all_logs_{name}.json","w") as phile:
     phile.write(json.dumps(all_log)) 
@@ -351,20 +361,22 @@ def combine(pth,name,vid):
       print("error, might have been someone elses log file?",e)
       
 def conv_ms_tstamp_string(ms):
+  """this is a helper script that converts ms counts to timestamp codes that range between seconds and hours"""
   t_s = int(ms/1000)%60
   t_mins = int(ms/(1000*60))%60
   t_hours = int(ms/(1000*60*60))%60
   return f"{t_hours:02d}:{t_mins:02d}:{t_s:02d}"
     
-# goal have a folder that you can export to, and the contents of this are compared to the inputs folder so that as things finish over time you know that you aren't re-runnign things
+
 def process_folders(in_folder, out_folder):
-    # get all the mp4s in the in folder and the jsons in the out folder
-    # look for the names of the mp4s in the jsons
+  """ This function supports the goal to specify a folder that you can export to, and the contents of this are compared to the inputs folder so that as videos get processed over many sessions, you know that you aren't re-runnign things"""
+  # get all the mp4s in the in folder and the jsons in the out folder
+  # look for the names of the mp4s in the jsons
   # look for a file in the out folder called finished which is just a list of the file names
   mp4s = glob.glob(in_folder + "/**/*mp4", recursive= True)
   jsons = glob.glob(out_folder + "/**/*json", recursive= True)
   # iterate over the jsons and if they are in the mp4s then remove that entity from the mp4s.
-  print(len(mp4s),len(jsons))
+  # NOTE That this is heavily tied to the naming patterns in use by the current files, if these change it could affect how this function performs.
   for j in jsons:
     # here's the part of the json name that uses the mp4 title
     start = j.find("Camera")
@@ -372,9 +384,12 @@ def process_folders(in_folder, out_folder):
     jvideo_name = j[start:end]
     for mp4 in mp4s:
       if jvideo_name == mp4.split("/")[-1]:
+        # sanity check to print that we have actually found files that match 
         print("found completed", mp4, j)
         mp4s.remove(mp4)
+        # break out of the inner loop so we can start with a new json file.
         break
   # send this to a function that is looking for videos to process
-  print(mp4s)
   return mp4s
+
+
