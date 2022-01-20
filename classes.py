@@ -324,7 +324,7 @@ def combine(pth,name,vid):
       all_data.extend(json.loads(phile.read()))
   
 ##get all the backgroundss
-  logs = glob.glob(pth+"/" + vid + "*png")
+  imgs = glob.glob(pth+"/" + vid + "*png")
   all_imgs =[]
   for img in imgs:
     with open(img,"rb") as phile:
