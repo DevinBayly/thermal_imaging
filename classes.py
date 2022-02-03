@@ -109,7 +109,7 @@ class GenericVideo:
     empty = np.zeros((200, 200))
 
     print(self.frames_to_process)
-    for i in tqdm(range(self.frames_to_process)):
+    for i in range(self.frames_to_process):
         tstart = time.time()
         ret, frame = self.cap.read()
         self.frames += 1
@@ -265,6 +265,7 @@ class OnlyDetect(SimplestPass):
     print("values are", vid, frames_to_process,id_val)
     only = OnlyDetect(vid, frames_to_process,id_val)
     only.process()
+    print("completed processing part of video",vid," on cpu id ",id_val)
 
   def export(self):
     """This method outputs the tstamp_logger to a file in the working directory where we are running this process. The name will contain a unique number associated with the cpu core that the logger was running on using the id_val. we also export a jpg frame so that we can plot detections points in the context of a mine video with the web vis log plotter. """
@@ -289,6 +290,7 @@ def process_parallel_video(passclass, ifolder, ofolder,video_number):
   videos= process_folders(ifolder, ofolder)
   # select a specific video from the list according to the job number provided in the array submission process
   vid = videos[int(video_number)]
+  print("processing ",vid," in this array job")
   # store the starting directory for later on 
   starting_directory = os.getcwd()
   # copy the video to the /tmp directory where io is faster
@@ -385,7 +387,7 @@ def process_folders(in_folder, out_folder):
     for mp4 in mp4s:
       if jvideo_name == mp4.split("/")[-1]:
         # sanity check to print that we have actually found files that match 
-        print("found completed", mp4, j)
+        
         mp4s.remove(mp4)
         # break out of the inner loop so we can start with a new json file.
         break
