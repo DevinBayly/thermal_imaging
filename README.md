@@ -1,4 +1,4 @@
-# thermal_imaging
+# Thermal Imaging Project
 
 This repository contains the work and information related to the Thermal Imaging project requested by Ed Wellman and Brad Ross from the University of Arizona. The goal of my involvement in the project was to write code to do rudimentary computer vision on the large collection of videos that had been taken from different open mines in North America. The code written is intended to run in HPC environments, and this document will walk the reader through the process of initiating a processing session. This document will also serve as a navigation aide for finding previous research done to support the computer vision aspects of this project. 
 
@@ -61,3 +61,19 @@ mv thermal.sif_latest.sif thermal_imaging.sif
 
 This will make sure you have the singularity container in the correct folder for being used in the batch processing to come. 
 
+## Process Steps Walkthrough
+
+### Starting sbatch submission
+
+There's only a couple more steps at this point. Using either the OOD cluster shell access or an actual terminal prompt signed in via `ssh` we will now be running the actual video processing. The first step is to ensure you are in the correct directory. You need to be in the directory that has the bash scripts with `.sh` extensions, the two python scripts `classes.py` and `process_video_folder.py` and the `thermal_imaging.sif` file. It should look like this
+
+![](https://user-images.githubusercontent.com/11687631/152858095-f0769e67-0b0d-48c2-bb05-34e2b26bd0ed.png)
+
+Then you can run these commands 
+
+![](https://user-images.githubusercontent.com/11687631/152858054-0d3faca6-b944-4815-9b77-65f8ec461637.png)
+
+in order, recall that after `sbatch_array.sh` comes the path to the videos upload folder, then the path to the output log folder. These need to be updated for your own processing paths. $(pwd) just expands to the "present working directory" absolute path, so if you are like me and have your log folder in the same place as the code and singularity container you can save some typing and put $(pwd) in front of the name of the folder.
+```
+sbatch sbatch_array.sh /xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/ $(pwd)/logfiles_folder/
+```
