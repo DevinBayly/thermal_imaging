@@ -264,8 +264,8 @@ class OnlyDetect(SimplestPass):
       the cpu core identifier that allows us to sign the logger files uniquely, before combining them back into a single file at the end of the process."""
     print("values are", vid, frames_to_process,id_val)
     only = OnlyDetect(vid, frames_to_process,id_val)
-    only.process(id_val)
-    print("completed processing part of video",vid," on cpu id ",id_val,time.time())
+    only.process()
+    print("completed processing part of video",vid," on cpu id ",id_val)
 
   def export(self):
     """This method outputs the tstamp_logger to a file in the working directory where we are running this process. The name will contain a unique number associated with the cpu core that the logger was running on using the id_val. we also export a jpg frame so that we can plot detections points in the context of a mine video with the web vis log plotter. """
