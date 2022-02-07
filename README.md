@@ -65,7 +65,7 @@ This will make sure you have the singularity container in the correct folder for
 
 ### Starting sbatch submission
 
-There's only a couple more steps at this point. Using either the OOD cluster shell access or an actual terminal prompt signed in via `ssh` we will now be running the actual video processing. The first step is to ensure you are in the correct directory. You need to be in the directory that has the bash scripts with `.sh` extensions, the two python scripts `classes.py` and `process_video_folder.py` and the `thermal_imaging.sif` file. It should look like this
+There's only a couple more steps at this point. Using either the OOD cluster shell access or an actual terminal prompt signed in via `ssh` we will now be running the actual video processing. We also want to make sure that we are submitting to the elgato super computer so we have to type `elgato` when we get into the shell. You will know that this is correct when the command prompt says `(elgato)` to the far left of a new line. Then you need to ensure you are in the correct directory. You need to be in the directory that has the bash scripts with `.sh` extensions, the two python scripts `classes.py` and `process_video_folder.py` and the `thermal_imaging.sif` file. It should look like this
 
 ![](https://user-images.githubusercontent.com/11687631/152858095-f0769e67-0b0d-48c2-bb05-34e2b26bd0ed.png)
 
@@ -77,3 +77,37 @@ in order, recall that after `sbatch_array.sh` comes the path to the videos uploa
 ```
 sbatch sbatch_array.sh /xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/ $(pwd)/logfiles_folder/
 ```
+
+The resulting log follows this structure where data contains actual data related to detections and background_images are base64 images used for contextualizing data in the background of the mine video they were taken from.
+
+![](https://user-images.githubusercontent.com/11687631/152862545-68988e03-e79e-4fbb-9778-be5423b093a5.png)
+
+A data entry is from a single frame of processing, and has information about the number of detections during that frame, and the detections locations in x,y. These coordinates are in the space of the image width so x is within `[0,width]` and y is `[0,height]` but where 0 is at the top of the image. This is a standard graphics system dating back to the early monitors whose rays started tracing from top left to bottom right.  
+
+![](https://user-images.githubusercontent.com/11687631/152862382-5df7c4c2-1042-4c81-b4dc-d11cc1aa3fee.png)
+
+
+## Modifying files
+
+### Changing the sbatch_array.sh
+
+This is the file that controls how many array jobs are created. Right now the file is producing 5 jobs at a time because it contains this line `#SBATCH --array 0-5`. If you open the file and change the 5 to a large number you will run more array jobs. This is the main modification that you would do in the future, as all the other settings were chosen for specific reasons to suit this processing pipeline. 
+
+If you start running on other super computers you will be able to run more than 16 cpu at a time. So you would have to say `puma` or `ocelote` when you first log into the HPC shell. Then you would need to change the line in the sbatch_array.sh from `#SBATCH --ntasks=16` to something higher. You would need to also update that number in the line `num_cpus = 15` withing the `process_parallel_video` function in the `classes.py` file.
+
+## Viewing the results
+
+
+When a video is all processed a `.json` file will be produced in the output log folder. The logs will have the same inner name as the video that they were created from in processing. Simply download a log file from the OOD xdisk file browser
+
+![](https://user-images.githubusercontent.com/11687631/152860208-c731bcdf-167e-4ec8-81a3-77b1aa33db36.png)
+
+and then navigate to the logger visualization tool https://devinbayly.github.io/thermal_imaging/.
+
+Please refer to this video for information about how to interact with the log plotter
+
+https://user-images.githubusercontent.com/11687631/152863504-9b498a62-8416-4b6e-93fd-29204fd67bbc.mp4
+
+## Final thoughts
+
+This repo has code meant to help transform the research data from a computer vision task to a data science task. Many things can be done with the log files to help speed up the process of detecting true rockfall events as compared with video artifact detections, vehicle motion, or any other false signals. The Log Plotter is also an example demonstration of but one way to visualize the results from the
