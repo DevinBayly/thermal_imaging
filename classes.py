@@ -10,7 +10,7 @@ import json
 import shutil
 import multiprocessing as mp
 import os
-import random
+
 
 class KPCalc:
   """
@@ -250,10 +250,7 @@ class OnlyDetect(SimplestPass):
     if  num_detections > 0:
       # here you can see the logger contains several representations of the time that the detections occured in the video and the number of detections in this frame as well as their x,y coordinates
       self.tstamp_logger.append({"tstamp_ms": self.tstamp, "tstamp": conv_ms_tstamp_string(self.tstamp),"number":num_detections,"detections":[{"x":d.pt[0],"y":d.pt[1]} for d in self.kpc.kp]})
-  def process(self,val):
-    for i in range(100):
-      print("i is", i,"running in ",val)
-      time.sleep(random.random()*2)
+
   @staticmethod
   def make_only_for_parallel(vid, frames_to_process,id_val):
     """this method is called to create an OnlyDetect object for each of the processes that will run on a cpu core. This method is static because we aren't using any existing instance to accomplish this, merely passing a function that will create an OnlyDetect object and then start the process.
