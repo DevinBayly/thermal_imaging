@@ -55,7 +55,7 @@ The singularity container is  currently hosted by github at https://github.com/D
 ![](https://user-images.githubusercontent.com/11687631/152855249-cf2668c2-d456-4b2b-889e-28dc8557baa7.png)
 
 ```
-singularity pull oras://ghcr.io/devinbayly/thermal.sif:latest
+singularity pull oras://ghcr.io/devinbayly/thermal.sif:numpy
 mv thermal.sif_latest.sif thermal_imaging.sif
 ```
 
