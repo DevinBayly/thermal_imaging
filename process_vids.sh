@@ -1,5 +1,4 @@
 #!/bin/bash
-cd code
 # $1 is the input video folder
 # $2 is the output log folder
 # $3 is the array job id that helps us pick right video to run
