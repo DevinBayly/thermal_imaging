@@ -73,7 +73,7 @@ Then you can run these commands
 
 ![](https://user-images.githubusercontent.com/11687631/152858054-0d3faca6-b944-4815-9b77-65f8ec461637.png)
 
-in order, recall that after `sbatch_array.sh` comes the path to the videos upload folder, then the path to the output log folder. These need to be updated for your own processing paths. $(pwd) just expands to the "present working directory" absolute path, so if you are like me and have your log folder in the same place as the code and singularity container you can save some typing and put $(pwd) in front of the name of the folder.
+in order, recall that after `sbatch_array.sh` comes the path to the videos upload folder, then the path to the output log folder. These need to be updated for your own processing paths. `$(pwd)` just expands to the "present working directory" absolute path, so if you are like me and have your log folder in the same place as the code and singularity container you can save some typing and put `$(pwd)` in front of the name of the folder.
 ```
 sbatch sbatch_array.sh /xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/ $(pwd)/logfiles_folder/
 ```
