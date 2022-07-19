@@ -110,4 +110,4 @@ https://user-images.githubusercontent.com/11687631/152863504-9b498a62-8416-4b6e-
 
 ## Final thoughts
 
-This repo has code meant to help transform the research data from a computer vision task to a data science task. Many things can be done with the log files to help speed up the process of detecting true rockfall events as compared with video artifact detections, vehicle motion, or any other false signals. The Log Plotter is also an example demonstration of but one way to visualize the results from the
+This repo has code meant to help transform the research data from a computer vision task to a data science task. Many things can be done with the log files to help speed up the process of detecting true rockfall events as compared with video artifact detections, vehicle motion, or any other false signals. The Log Plotter is also an example demonstration of but one way to visualize the results from the log files.
