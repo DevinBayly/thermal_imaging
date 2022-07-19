@@ -27,7 +27,7 @@ All the code necessary to process the videos is kept in version control on githu
 
 #### Using OOD for starting an interactive session
 
-Navigate to [ood.hpc.arizona.edu](ood.hpc.arizona.edu) and fill in the web auth details. You will then see 
+Navigate to [ood.hpc.arizona.edu](https://ood.hpc.arizona.edu) and fill in the web auth details. You will then see 
 ![](https://user-images.githubusercontent.com/11687631/152853352-ca8fe49e-0f3b-4530-ad71-f6c3e0eca829.png)
 click on the `clusters` tab at the top and select shell. This brings you to a login node on the HPC using the browser for your shell session. Then we will submit the lines of code shown in the following image:
 
