@@ -77,6 +77,12 @@ in order, recall that after `sbatch_array.sh` comes the path to the videos uploa
 ```
 sbatch sbatch_array.sh /xdisk/chrisreidy/baylyd/thermal_imaging/Mine-4/ $(pwd)/logfiles_folder/
 ```
+Once you've done that you can run the command to double check your job was submitted correctly you can use this. put in your netid where it says <netid>
+
+```
+squeue -u <netid>
+```
+Or you can sign in here to view the status of your submitted jobs https://portal.hpc.arizona.edu/
 
 The resulting log follows this structure where data contains actual data related to detections and background_images are base64 images used for contextualizing data in the background of the mine video they were taken from.
 
